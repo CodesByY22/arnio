@@ -2,9 +2,9 @@
 Reproducible benchmark: arnio vs pandas
 Run: python benchmarks/benchmark_vs_pandas.py
 """
+
 import json
 import argparse
-import json
 import subprocess
 import sys
 import time
@@ -184,13 +184,16 @@ def run_subprocess(engine, path):
         raise RuntimeError(f"No output from benchmark subprocess ({engine}).")
     return json.loads(output)
 
+
 def load_baseline():
     with open(BASELINE_FILE, "r") as f:
         return json.load(f)
-    
-def calculate_regression(current, baseline):
-    return ((current - baseline) / baseline) * 100 #How much slower current benchmark is compared to baseline
 
+
+def calculate_regression(current, baseline):
+    return (
+        (current - baseline) / baseline
+    ) * 100  # How much slower current benchmark is compared to baseline
 
 
 def run_case(case):
@@ -245,7 +248,7 @@ def run_case(case):
         )
     else:
         print(f"\nSpeed: {avg(pd_times)/avg(ar_times):.1f}x")
-    
+
     baseline_case = baseline_data.get(case.name)
 
     if baseline_case:
