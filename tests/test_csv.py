@@ -86,6 +86,65 @@ class TestReadCsv:
         assert dtypes["name"] == "string"
         assert dtypes["active"] == "bool"
 
+    def test_leading_zero_identifiers_preserved(self, tmp_path):
+        csv_path = tmp_path / "leading_zero_ids.csv"
+        csv_path.write_text(
+            "zipcode,account_id\n"
+            "00123,000999\n"
+            "04567,000111\n"
+        )
+
+        frame = ar.read_csv(csv_path)
+
+        assert frame.dtypes["zipcode"] == "string"
+        assert frame.dtypes["account_id"] == "string"
+
+        df = ar.to_pandas(frame)
+
+        assert df["zipcode"].iloc[0] == "00123"
+        assert df["zipcode"].iloc[1] == "04567"
+
+        assert df["account_id"].iloc[0] == "000999"
+        assert df["account_id"].iloc[1] == "000111"
+
+    def test_regular_integer_columns_still_infer_int64(self, tmp_path):
+        csv_path = tmp_path / "regular_integers.csv"
+        csv_path.write_text(
+            "id,count,value\n"
+            "123,456,789\n"
+            "100,200,300\n"
+        )
+
+        frame = ar.read_csv(csv_path)
+
+        assert frame.dtypes["id"] == "int64"
+        assert frame.dtypes["count"] == "int64"
+        assert frame.dtypes["value"] == "int64"
+
+        df = ar.to_pandas(frame)
+
+        assert df["id"].iloc[0] == 123
+        assert df["count"].iloc[0] == 456
+
+    def test_mixed_identifier_column_preserves_string_dtype(self, tmp_path):
+        csv_path = tmp_path / "mixed_identifiers.csv"
+        csv_path.write_text(
+            "identifier\n"
+            "00123\n"
+            "45678\n"
+            "00100\n"
+        )
+
+        frame = ar.read_csv(csv_path)
+
+        assert frame.dtypes["identifier"] == "string"
+
+        df = ar.to_pandas(frame)
+
+        assert df["identifier"].iloc[0] == "00123"
+        assert df["identifier"].iloc[1] == "45678"
+        assert df["identifier"].iloc[2] == "00100"
+
     # ----------------------------
     # Thousands separator tests
     # ----------------------------
