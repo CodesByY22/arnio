@@ -3,8 +3,8 @@ Reproducible benchmark: arnio vs pandas
 Run: python benchmarks/benchmark_vs_pandas.py
 """
 
-import json
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -186,7 +186,7 @@ def run_subprocess(engine, path):
 
 
 def load_baseline():
-    with open(BASELINE_FILE, "r") as f:
+    with open(BASELINE_FILE) as f:
         return json.load(f)
 
 
