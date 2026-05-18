@@ -123,11 +123,22 @@ DType CsvReader::infer_type(const std::string& value) {
 
     // Try int64
     {
+         // Preserve identifier-like values with leading zeros
+         // Example: 00123, 000999
+        if (value.size() > 1 &&
+            value[0] == '0' &&
+            std::all_of(value.begin(), value.end(), ::isdigit)) {
+            return DType::STRING;
+        }
+
         const char* start = value.c_str();
         char* end = nullptr;
         long long val = std::strtoll(start, &end, 10);
         (void)val;
-        if (end != start && *end == '\0') return DType::INT64;
+
+        if (end != start && *end == '\0') {
+            return DType::INT64;
+        }
     }
 
     // Try float64
