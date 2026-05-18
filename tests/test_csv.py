@@ -86,6 +86,27 @@ class TestReadCsv:
         assert dtypes["name"] == "string"
         assert dtypes["active"] == "bool"
 
+    def test_leading_zero_identifiers_preserved(self, tmp_path):
+        csv_path = tmp_path / "leading_zero_ids.csv"
+        csv_path.write_text(
+            "zipcode,account_id\n"
+            "00123,000999\n"
+            "04567,000111\n"
+        )
+
+        frame = ar.read_csv(csv_path)
+
+        assert frame.dtypes["zipcode"] == "string"
+        assert frame.dtypes["account_id"] == "string"
+
+        df = ar.to_pandas(frame)
+
+        assert df["zipcode"].iloc[0] == "00123"
+        assert df["zipcode"].iloc[1] == "04567"
+
+        assert df["account_id"].iloc[0] == "000999"
+        assert df["account_id"].iloc[1] == "000111"
+
     def test_large_csv(self, large_csv):
         frame = ar.read_csv(large_csv)
         assert frame.shape == (1000, 3)
