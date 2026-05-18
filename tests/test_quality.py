@@ -84,6 +84,87 @@ def test_suggest_cleaning_returns_pipeline_compatible_steps(csv_with_duplicates)
     assert clean.shape == (3, 2)
 
 
+def test_suggest_cleaning_confidence_metadata():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 3],
+            "name": ["Alice ", "Bob", "Charlie ", "Charlie "],
+            "active": ["true", "false", "true", "true"],
+            "duplicates": [1, 1, 1, 1],
+        }
+    )
+    frame = ar.from_pandas(df)
+    report = ar.profile(frame)
+    suggestions = ar.suggest_cleaning(report)
+
+    # Convert to standard list of step names to find the specific suggestions
+    step_names = [s[0] for s in suggestions]
+
+    # Check strip_whitespace
+    assert "strip_whitespace" in step_names
+    strip_sug = next(s for s in suggestions if s[0] == "strip_whitespace")
+    assert getattr(strip_sug, "confidence_score") == 0.95
+    assert "Trimming leading/trailing whitespace" in getattr(
+        strip_sug, "confidence_reason"
+    )
+    assert getattr(strip_sug, "step") == "strip_whitespace"
+    assert getattr(strip_sug, "kwargs") == {"subset": ["name"]}
+
+    # Check cast_types
+    assert "cast_types" in step_names
+    cast_sug = next(s for s in suggestions if s[0] == "cast_types")
+    assert getattr(cast_sug, "confidence_score") == 0.95
+    assert "conforms perfectly to bool structure" in getattr(
+        cast_sug, "confidence_reason"
+    )
+
+    # Check drop_duplicates
+    assert "drop_duplicates" in step_names
+    drop_sug = next(s for s in suggestions if s[0] == "drop_duplicates")
+    # Duplicate ratio here is 1 duplicate out of 4 rows = 0.25 <= 0.5
+    assert getattr(drop_sug, "confidence_score") == 0.95
+    assert "Low duplicate ratio" in getattr(drop_sug, "confidence_reason")
+
+    # Check JSON serialization of confidence metadata
+    report_dict = report.to_dict()
+    dict_suggestions = report_dict["suggestions"]
+    assert len(dict_suggestions) == 3
+    for s in dict_suggestions:
+        assert "confidence_score" in s
+        assert "confidence_reason" in s
+        assert isinstance(s["confidence_score"], float)
+        assert isinstance(s["confidence_reason"], str)
+
+    # Check Markdown formatting
+    md = report.to_markdown()
+    assert "(Confidence: 0.95 -" in md
+
+
+def test_cleaning_suggestion_backward_compatibility():
+    """Prove backward compatibility with the existing tuple contract."""
+    from arnio.quality import CleaningSuggestion
+
+    sug = CleaningSuggestion("drop_duplicates", {"keep": "first"}, 0.9, "reason")
+
+    # It should equate to the exact 2-tuple.
+    assert sug == ("drop_duplicates", {"keep": "first"})
+
+    # It should unpack correctly into 2 variables.
+    step, kwargs = sug
+    assert step == "drop_duplicates"
+    assert kwargs == {"keep": "first"}
+
+    # It should work natively with ar.pipeline
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 2],
+        }
+    )
+    frame = ar.from_pandas(df)
+    clean = ar.pipeline(frame, [sug])
+    assert clean.shape == (2, 1)
+
+
 def test_auto_clean_safe_trims_without_dropping_duplicates(tmp_path):
     path = tmp_path / "safe.csv"
     path.write_text("name\n Alice \n Alice \n")
