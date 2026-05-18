@@ -1,5 +1,4 @@
-from benchmarks.benchmark_vs_pandas import calculate_regression
-from benchmarks.benchmark_vs_pandas import load_baseline
+from benchmarks.benchmark_vs_pandas import calculate_regression, load_baseline
 
 
 def test_calculate_regression():
