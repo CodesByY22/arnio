@@ -1075,6 +1075,8 @@ class TestLeadingZeroIdentifiers:
 
         assert frame.dtypes["code"] == "string"
         assert df["code"].iloc[0] == "00A1B"
+
+
 class TestSniffDelimiter:
     def test_sniff_comma(self, tmp_path):
         csv_path = tmp_path / "comma.csv"
