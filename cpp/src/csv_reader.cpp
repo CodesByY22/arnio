@@ -198,6 +198,25 @@ void validate_row_width(size_t row_number, size_t expected, size_t actual) {
                              std::to_string(expected));
 }
 
+// Detect if a numeric string has leading zeros that indicate it's likely an
+// identifier (ZIP code, account ID, product code, etc.) rather than a true
+// numeric value. Identifiers with leading zeros should be preserved as strings.
+static bool has_leading_zero_indicator(const std::string& cleaned) {
+    // Must be longer than a single zero
+    if (cleaned.size() <= 1) {
+        return false;
+    }
+
+    // Must start with leading zero
+    if (cleaned[0] != '0') {
+        return false;
+    }
+
+    // Every character must be a digit
+    return std::all_of(cleaned.begin(), cleaned.end(),
+                       [](unsigned char ch) { return std::isdigit(ch); });
+}
+
 }  // namespace
 
 CsvReader::CsvReader(const CsvConfig& config) : config_(config) {}
@@ -277,6 +296,13 @@ DType CsvReader::infer_type(const std::string& value) const {
         (void)val;
         if (end != start && *end == '\0') {
             if (errno == ERANGE) return DType::STRING;
+            // Check if this looks like an identifier with leading zeros
+            // (ZIP code, account ID, product code, etc.)
+            if (has_leading_zero_indicator(cleaned) &&
+                std::all_of(cleaned.begin(), cleaned.end(),
+                            [](unsigned char ch) { return std::isdigit(ch); })) {
+                return DType::STRING;
+            }
             return DType::INT64;
         }
     }
