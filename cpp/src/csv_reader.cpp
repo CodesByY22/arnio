@@ -301,6 +301,10 @@ DType CsvReader::infer_type(const std::string& value) const {
                 return DType::STRING;
             }
 
+            if (looks_like_integer_literal(cleaned)) {
+                return DType::STRING;
+            }
+
             return DType::INT64;
         }
     }
