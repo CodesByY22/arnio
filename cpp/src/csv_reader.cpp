@@ -296,18 +296,14 @@ DType CsvReader::infer_type(const std::string& value) const {
         (void)val;
         if (end != start && *end == '\0') {
             if (errno == ERANGE) return DType::STRING;
-            // Check if this looks like an identifier with leading zeros
-            // (ZIP code, account ID, product code, etc.)
-            if (has_leading_zero_indicator(cleaned) &&
-                std::all_of(cleaned.begin(), cleaned.end(),
-                            [](unsigned char ch) { return std::isdigit(ch); })) {
+
+            if (has_leading_zero_indicator(cleaned)) {
                 return DType::STRING;
             }
+
             return DType::INT64;
         }
     }
-
-    if (looks_like_integer_literal(cleaned)) return DType::STRING;
 
     // Try float64
     {
@@ -388,8 +384,10 @@ CellValue CsvReader::parse_value(const std::string& raw, DType dtype) const {
                 return std::monostate{};
             }
         }
-        case DType::STRING:
+        case DType::STRING: {
+            // Keep raw string values exactly as they appear in the CSV
             return raw;
+        }
         default:
             return std::monostate{};
     }
