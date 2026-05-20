@@ -384,8 +384,8 @@ print(schema_info)
 #     },
 # }
 ```
-`sampled_rows` reports the configured sampling limit used for schema inference,
-not the total number of rows in the CSV file.
+`sampled_rows` reports the actual number of data rows sampled during schema
+inference, which may be smaller than `sample_size` for short files.
 
 Useful for exploring datasets before committing memory.
 </details>
