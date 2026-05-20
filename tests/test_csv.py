@@ -1472,7 +1472,7 @@ class TestScanCsv:
 
         assert metadata["delimiter"] == ","
         assert metadata["encoding"] == "utf-8"
-        assert metadata["sampled_rows"] == 100
+        assert metadata["sampled_rows"] == 2
 
     def test_scan_csv_returns_custom_metadata_values(self, tmp_path):
         csv_path = tmp_path / "custom_metadata.csv"
@@ -1490,7 +1490,21 @@ class TestScanCsv:
 
         assert metadata["delimiter"] == ";"
         assert metadata["encoding"] == "utf-8"
-        assert metadata["sampled_rows"] == 50
+        assert metadata["sampled_rows"] == 2
+
+    def test_scan_csv_metadata_reports_actual_sampled_rows(self, tmp_path):
+        csv_path = tmp_path / "actual_rows.csv"
+        csv_path.write_text("id,name\n1,Alice\n2,Bob\n")
+
+        result = ar.scan_csv(
+            csv_path,
+            sample_size=100,
+            return_metadata=True,
+        )
+
+        metadata = result["metadata"]
+
+        assert metadata["sampled_rows"] == 2
 
 
 # --- Issue #115: quoted multiline round-trip across line endings ---
