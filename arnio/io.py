@@ -876,9 +876,6 @@ def scan_csv(
     sample_size : int, optional
         Number of rows to read for type inference. If None, defaults to 100 rows.
     has_header : bool, default True
-        return_metadata : bool, default False
-            Whether to return lightweight scan metadata along with
-            inferred schema information.
         Whether the CSV file contains a header row.
         When False, synthetic column names are generated
         in the form ``col_0``, ``col_1``, etc., matching
@@ -893,6 +890,9 @@ def scan_csv(
         ``"error"`` raises :exc:`CsvReadError` immediately (default).
         ``"warn"`` skips the bad row and emits a :class:`UserWarning`.
         ``"skip"`` silently skips the bad row without any warning.
+    return_metadata : bool, default False
+        Whether to return lightweight scan metadata along with
+        inferred schema information.
     Returns
     -------
     dict[str, str] | dict[str, object]
@@ -972,7 +972,19 @@ def scan_csv(
             delimiter=delimiter,
             sample_rows=100 if sample_size is None else sample_size,
         ) as native_path:
-            return cast(dict[str, str], reader.scan_schema(native_path))
+            schema = cast(dict[str, str], reader.scan_schema(native_path))
+
+            if return_metadata:
+                return {
+                    "schema": schema,
+                    "metadata": {
+                        "delimiter": delimiter,
+                        "encoding": encoding,
+                        "sampled_rows": (100 if sample_size is None else sample_size),
+                    },
+                }
+
+            return schema
     except RuntimeError as e:
         raise CsvReadError(str(e)) from e
 
