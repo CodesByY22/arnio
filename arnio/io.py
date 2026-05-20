@@ -157,6 +157,220 @@ def _utf8_csv_path(
                 pass
 
 
+@contextmanager
+def _utf8_csv_path_sampled(
+    path: str,
+    encoding: str,
+    delimiter: str = ",",
+    sample_rows: int | None = None,
+) -> Iterator[tuple[str, int]]:
+    """Return a UTF-8 sampled CSV path and the actual sampled row count.
+
+    The native reader only consumes UTF-8 bytes. When sampling is requested,
+    this helper writes a temporary UTF-8 file containing at most
+    ``sample_rows`` complete logical records and tracks the number of records
+    written.
+    """
+    if sample_rows is None:
+        raise ValueError("sample_rows must not be None")
+
+    tmp_name: str | None = None
+    row_count = 0
+    try:
+        with open(path, encoding=encoding, newline="") as src:
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", newline="", suffix=".csv", delete=False
+            ) as tmp:
+                in_quotes = False
+                pending_quote = False
+                pending_cr = False
+                last_char_was_terminator = False
+                sample_complete = False
+
+                while chunk := src.read(8192):
+                    chunk_len = len(chunk)
+                    index = 0
+                    while index < chunk_len:
+                        char = chunk[index]
+
+                        if sample_complete:
+                            if pending_cr and char == "\n":
+                                tmp.write(char)
+                            pending_cr = False
+                            break
+
+                        tmp.write(char)
+
+                        if pending_cr:
+                            pending_cr = False
+                            if char == "\n":
+                                last_char_was_terminator = True
+                                index += 1
+                                continue
+
+                        if char == '"':
+                            if pending_quote:
+                                pending_quote = False
+                            elif in_quotes:
+                                pending_quote = True
+                            else:
+                                in_quotes = True
+                            last_char_was_terminator = False
+                        else:
+                            if pending_quote:
+                                in_quotes = False
+                                pending_quote = False
+
+                            if not in_quotes and char in {"\n", "\r"}:
+                                row_count += 1
+                                last_char_was_terminator = True
+                                if char == "\r":
+                                    if (
+                                        index + 1 < chunk_len
+                                        and chunk[index + 1] == "\n"
+                                    ):
+                                        tmp.write("\n")
+                                        index += 1
+                                    else:
+                                        pending_cr = True
+                                if row_count >= sample_rows:
+                                    sample_complete = True
+                                    break
+                            else:
+                                last_char_was_terminator = False
+
+                        index += 1
+
+                    if sample_complete and not pending_cr:
+                        break
+
+                if sample_rows > 0 and not last_char_was_terminator and tmp.tell() > 0:
+                    row_count += 1
+                tmp_name = tmp.name
+        yield tmp_name, row_count
+    except LookupError as e:
+        raise ValueError(f"Unknown encoding: {encoding}") from e
+    except UnicodeDecodeError as e:
+        raise CsvReadError(
+            f"Could not decode {path!r} using encoding {encoding!r}"
+        ) from e
+    except OSError as e:
+        _raise_csv_path_os_error(path, e)
+    finally:
+        if tmp_name is not None:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+
+
+@contextmanager
+def _utf8_csv_path_sampled(
+    path: str,
+    encoding: str,
+    delimiter: str = ",",
+    sample_rows: int | None = None,
+) -> Iterator[tuple[str, int]]:
+    """Return a UTF-8 sampled CSV path and the actual sampled row count.
+
+    The native reader only consumes UTF-8 bytes. When sampling is requested,
+    this helper writes a temporary UTF-8 file containing at most
+    ``sample_rows`` complete logical records and tracks the number of records
+    written.
+    """
+    if sample_rows is None:
+        raise ValueError("sample_rows must not be None")
+
+    tmp_name: str | None = None
+    row_count = 0
+    try:
+        with open(path, encoding=encoding, newline="") as src:
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", newline="", suffix=".csv", delete=False
+            ) as tmp:
+                in_quotes = False
+                pending_quote = False
+                pending_cr = False
+                last_char_was_terminator = False
+                sample_complete = False
+
+                while chunk := src.read(8192):
+                    chunk_len = len(chunk)
+                    index = 0
+                    while index < chunk_len:
+                        char = chunk[index]
+
+                        if sample_complete:
+                            if pending_cr and char == "\n":
+                                tmp.write(char)
+                            pending_cr = False
+                            break
+
+                        tmp.write(char)
+
+                        if pending_cr:
+                            pending_cr = False
+                            if char == "\n":
+                                last_char_was_terminator = True
+                                index += 1
+                                continue
+
+                        if char == '"':
+                            if pending_quote:
+                                pending_quote = False
+                            elif in_quotes:
+                                pending_quote = True
+                            else:
+                                in_quotes = True
+                            last_char_was_terminator = False
+                        else:
+                            if pending_quote:
+                                in_quotes = False
+                                pending_quote = False
+
+                            if not in_quotes and char in {"\n", "\r"}:
+                                row_count += 1
+                                last_char_was_terminator = True
+                                if char == "\r":
+                                    if (
+                                        index + 1 < chunk_len
+                                        and chunk[index + 1] == "\n"
+                                    ):
+                                        tmp.write("\n")
+                                        index += 1
+                                    else:
+                                        pending_cr = True
+                                if row_count >= sample_rows:
+                                    sample_complete = True
+                                    break
+                            else:
+                                last_char_was_terminator = False
+
+                        index += 1
+
+                    if sample_complete and not pending_cr:
+                        break
+
+                if sample_rows > 0 and not last_char_was_terminator and tmp.tell() > 0:
+                    row_count += 1
+                tmp_name = tmp.name
+        yield tmp_name, row_count
+    except LookupError as e:
+        raise ValueError(f"Unknown encoding: {encoding}") from e
+    except UnicodeDecodeError as e:
+        raise CsvReadError(
+            f"Could not decode {path!r} using encoding {encoding!r}"
+        ) from e
+    except OSError as e:
+        raise CsvReadError(str(e)) from e
+    finally:
+        if tmp_name is not None:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+
+
 def _validate_thousands_separator(
     thousands_separator: str | None,
     decimal_separator: str = ".",
@@ -965,26 +1179,35 @@ def scan_csv(
         # Schema inference only needs a sample, avoiding full-file transcode.
         # sample_rows is passed so _utf8_csv_path uses record-aware sampling
         # without rewriting decoded CSV text before native parsing.
-        with _utf8_csv_path(
+        with _utf8_csv_path_sampled(
             path,
             encoding,
             encoding_errors=encoding_errors,
             delimiter=delimiter,
             sample_rows=100 if sample_size is None else sample_size,
-        ) as native_path:
+        ) as (native_path, sampled_rows):
             schema = cast(dict[str, str], reader.scan_schema(native_path))
 
-            if return_metadata:
-                return {
-                    "schema": schema,
-                    "metadata": {
-                        "delimiter": delimiter,
-                        "encoding": encoding,
-                        "sampled_rows": (100 if sample_size is None else sample_size),
-                    },
-                }
+          
 
-            return schema
+        with _utf8_csv_path_sampled(...) as (native_path, sampled_rows):
+
+                    if has_header and sampled_rows > 0:
+                        sampled_rows -= 1
+
+                    if return_metadata:
+                        return {
+                            "schema": schema,
+                            "metadata": {
+                                "delimiter": delimiter,
+                                "encoding": encoding,
+                                "sampled_rows": sampled_rows,
+                            },
+                        }
+
+                    
+
+        return schema
     except RuntimeError as e:
         raise CsvReadError(str(e)) from e
 
