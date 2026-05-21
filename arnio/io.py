@@ -270,6 +270,7 @@ def _utf8_csv_path_sampled(
     encoding: str,
     delimiter: str = ",",
     sample_rows: int | None = None,
+    has_header: bool = True,
 ) -> Iterator[tuple[str, int]]:
     """Return a UTF-8 sampled CSV path and the actual sampled row count.
 
@@ -283,6 +284,7 @@ def _utf8_csv_path_sampled(
 
     tmp_name: str | None = None
     row_count = 0
+    effective_limit = sample_rows + 1 if has_header else sample_rows
     try:
         with open(path, encoding=encoding, newline="") as src:
             with tempfile.NamedTemporaryFile(
@@ -340,7 +342,7 @@ def _utf8_csv_path_sampled(
                                         index += 1
                                     else:
                                         pending_cr = True
-                                if row_count >= sample_rows:
+                                if row_count >= effective_limit:
                                     sample_complete = True
                                     break
                             else:
@@ -1185,6 +1187,7 @@ def scan_csv(
             encoding_errors=encoding_errors,
             delimiter=delimiter,
             sample_rows=100 if sample_size is None else sample_size,
+            has_header=has_header,
         ) as (native_path, sampled_rows):
             schema = cast(dict[str, str], reader.scan_schema(native_path))
 
